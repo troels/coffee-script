@@ -422,9 +422,32 @@ test "Issue #997. Switch doesn't fallthrough.", ->
 
 
 test "Throw should be usable as an expression.", ->
-
   try
     false or throw 'up'
     throw new Error 'failed'
   catch e
     ok e is 'up'
+
+test "Return followed by indent", ->
+  foo = ->
+    return
+      [1, 2, 3, 4]
+  eq foo()[0], 1
+
+  bar = ->
+    return
+      one: 1
+      two: 2
+  eq bar().one, 1
+
+  baz = ->
+    return one: 1, two: 2 if yes
+
+  qux = ->
+    return
+      one: 1
+      other:
+        two: two: two: 2
+        three: ->
+          3
+  eq qux().other.three(), 3
