@@ -40,6 +40,7 @@ exports.Lexer = class Lexer
     @indebt   = 0              # The over-indentation at the current level.
     @outdebt  = 0              # The under-outdentation at the current level.
     @indents  = []             # The stack of all current indentation levels.
+    @oldDebts = []             # Stack of old indebts and outdebts, to go with indents
     @ends     = []             # The stack for pairing up tokens.
     @tokens   = []             # Stream of parsed tokens in the form `['TYPE', value, line]`.
 
@@ -316,7 +317,13 @@ exports.Lexer = class Lexer
     @seenFor = no
     size = indent.length - 1 - indent.lastIndexOf '\n'
     noNewlines = @unfinished()
-    if size - @indebt is @indent
+    #console.log size, @indent, @indents, @indebt, @outdebt, noNewlines
+
+    if size - @indebt is @indent or size + @outdebt is @indent
+      if size - @indebt is @indent
+        @outdebt = 0
+      if size + @outdebt is @indent
+        @indebt = 0
       if noNewlines then @suppressNewlines() else @newlineToken 0
       return indent.length
 
@@ -325,39 +332,50 @@ exports.Lexer = class Lexer
         @indebt = size - @indent
         @suppressNewlines()
         return indent.length
-      diff = size - @indent + @outdebt
+      diff = size - @indent
       @token 'INDENT', diff, 0, indent.length
+
+      # Keep track of old debts, so that we can get back on track later.
+
+      if @indebt
+        @oldDebts.push @indebt
+      else if @outdebt
+        @oldDebts.push -@outdebt
+      else
+        @oldDebts.push 0
+
       @indents.push diff
       @ends.push 'OUTDENT'
       @outdebt = @indebt = 0
+      @indent = size
     else
       @indebt = 0
       @outdentToken @indent - size, noNewlines, indent.length
-    @indent = size
     indent.length
 
   # Record an outdent token or multiple tokens, if we happen to be moving back
   # inwards past several recorded indents.
   outdentToken: (moveOut, noNewlines, outdentLength) ->
     while moveOut > 0
-      len = @indents.length - 1
-      if @indents[len] is undefined
-        moveOut = 0
-      else if @indents[len] is @outdebt
-        moveOut -= @outdebt
-        @outdebt = 0
-      else if @indents[len] < @outdebt
-        @outdebt -= @indents[len]
-        moveOut  -= @indents[len]
-      else
-        dent = @indents.pop() + @outdebt
-        moveOut -= dent
-        @outdebt = 0
-        @pair 'OUTDENT'
-        @token 'OUTDENT', dent, 0, outdentLength
-    @outdebt -= moveOut if dent
-    @tokens.pop() while @value() is ';'
+      indent  = last @indents
+      oldDebt = last @oldDebts
 
+      break if not indent?
+      break if indent > moveOut and (not (oldDebt > 0) or indent - moveOut != oldDebt)
+
+      @indents.pop()
+      @oldDebts.pop()
+      moveOut -= indent
+      @indent -= indent
+      @pair 'OUTDENT'
+      @token 'OUTDENT', indent, 0, outdentLength
+
+      if oldDebt > 0 and indent + moveOut is oldDebt
+        @indebt = oldDebt
+        moveOut = 0
+        break
+    @outdebt = moveOut
+    @tokens.pop() while @value() is ';'
     @token 'TERMINATOR', '\n', outdentLength, 0 unless @tag() is 'TERMINATOR' or noNewlines
     this
 
@@ -605,7 +623,7 @@ exports.Lexer = class Lexer
       #     el.click((event) ->
       #       el.hide())
       #
-      @indent -= size = last @indents
+      size = last @indents
       @outdentToken size, true
       return @pair tag
     @ends.pop()

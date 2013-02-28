@@ -225,3 +225,38 @@ test "#1435 Indented property access", ->
             rec.rec()
           .rec()
     1
+
+test "#1275, Sub-block terminator can cause parent block termination", ->
+  first = (x) -> x
+
+  rec = (x, y) -> if not y then rec: rec else y()
+
+  foo = rec()
+    .rec "test", ->
+      rec("asdads").rec( ->
+        false
+       )
+      1
+  eq foo, 1
+
+  bar = rec()
+    .rec "test", ->
+      rec("asdads").rec( ->
+        false
+      )
+      1
+  eq bar, 1
+
+  baz = ->
+    (
+      1
+      )
+    2
+  eq baz(), 2
+
+  qux = ->
+    (
+      1
+     )
+    2
+  eq qux(), 2
