@@ -180,6 +180,7 @@ exports.Base = class Base
 
     @eachChild (child) ->
       child.updateLocationDataIfMissing locationData
+    this
 
   # Throw a SyntaxError associated with this node's location.
   error: (message) ->
@@ -1343,7 +1344,7 @@ exports.Code = class Code extends Base
 
     return [@makeCode(@tab), answer...] if @ctor
     if @front or (o.level >= LEVEL_ACCESS) then @wrapInBraces answer else answer
-    
+
   eachParamName: (iterator) ->
     param.eachName iterator for param in @params
 

@@ -30,6 +30,9 @@ BANNER = '''
   If called without options, `coffee` will run your script.
 '''
 
+
+normalizePath = (p) -> p.replace(path.sep, '/')
+
 # The list of all the valid option flags that `coffee` knows how to handle.
 SWITCHES = [
   ['-b', '--bare',            'compile without a top-level function wrapper']
@@ -256,7 +259,7 @@ removeSource = (source, base, removeJs) ->
 
 # Get the corresponding output JavaScript path for a source file.
 outputPath = (source, base, extension=".js") ->
-  basename  = helpers.baseFileName source, yes
+  basename  = helpers.stripExtension path.basename source
   srcDir    = path.dirname source
   baseDir   = if base is '.' then srcDir else srcDir.substring base.length
   dir       = if opts.output then path.join opts.output, baseDir else srcDir
@@ -274,7 +277,7 @@ writeJs = (base, sourcePath, js, jsPath, generatedSourceMap = null) ->
   compile = ->
     if opts.compile
       js = ' ' if js.length <= 0
-      if generatedSourceMap then js = "#{js}\n/*\n//@ sourceMappingURL=#{helpers.baseFileName sourceMapPath}\n*/\n"
+      if generatedSourceMap then js = "#{js}\n/*\n//@ sourceMappingURL=#{path.basename sourceMapPath}\n*/\n"
       fs.writeFile jsPath, js, (err) ->
         if err
           printLine err.message
@@ -343,13 +346,13 @@ compileOptions = (filename, base) ->
         jsPath
         sourceRoot: path.relative jsDir, cwd
         sourceFiles: [path.relative cwd, filename]
-        generatedFile: helpers.baseFileName(jsPath)
+        generatedFile: path.basename jsPath
       }
     else
       answer = helpers.merge answer,
         sourceRoot: ""
-        sourceFiles: [helpers.baseFileName filename]
-        generatedFile: helpers.baseFileName(filename, yes) + ".js"
+        sourceFiles: [path.basename filename]
+        generatedFile: (helpers.stripExtension path.basename filename) + ".js"
   answer
 
 # Start up a new Node.js instance with the arguments in `--nodejs` passed to

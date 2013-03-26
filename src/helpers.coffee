@@ -7,7 +7,7 @@ exports.starts = (string, literal, start) ->
   literal is string.substr start, literal.length
 
 # Peek at the end of a given string to see if it matches a sequence.
-exports.ends = (string, literal, back) ->
+exports.ends = ends = (string, literal, back) ->
   len = literal.length
   literal is string.substr string.length - len - (back or 0), len
 
@@ -65,6 +65,8 @@ exports.del = (obj, key) ->
 # Gets the last item of an array(-like) object.
 exports.last = last = (array, back) -> array[array.length - (back or 0) - 1]
 
+exports.butlast = butlast = (array, back) -> array[0 ... array.length - (back or 0) - 1]
+
 # Typical Array::some
 exports.some = Array::some ? (fn) ->
   return true for e in this when fn e
@@ -81,48 +83,44 @@ exports.invertLiterate = (code) ->
       '# ' + line
   lines.join '\n'
 
-# Merge two jison-style location data objects together.
-# If `last` is not provided, this will simply return `first`.
-buildLocationData = (first, last) ->
-  if not last
-    first
-  else
-    first_line: first.first_line
-    first_column: first.first_column
-    last_line: last.last_line
-    last_column: last.last_column
-
 # This returns a function which takes an object as a parameter, and if that
 # object is an AST node, updates that object's locationData.
 # The object is returned either way.
 exports.addLocationDataFn = (first, last) ->
     (obj) ->
-      if ((typeof obj) is 'object') and (!!obj['updateLocationDataIfMissing'])
-        obj.updateLocationDataIfMissing buildLocationData(first, last)
+      return obj if not obj?.updateLocationDataIfMissing
 
-      return obj
+      {first_line, first_column, last_line, last_column} = first
+      {last_line, last_column} = last if last?
+
+      obj.updateLocationDataIfMissing
+          first_line:   first_line
+          first_column: first_column
+          last_line:    last_line
+          last_column:  last_column
 
 # Convert jison location data to a string.
 # `obj` can be a token, or a locationData.
 exports.locationDataToString = (obj) ->
-    if ("2" of obj) and ("first_line" of obj[2]) then locationData = obj[2]
-    else if "first_line" of obj then locationData = obj
-
-    if locationData
-      "#{locationData.first_line + 1}:#{locationData.first_column + 1}-" +
-      "#{locationData.last_line + 1}:#{locationData.last_column + 1}"
+    if obj?[2]?.first_line? # A token
+      ld = obj[2]
+    else if obj?.first_line? # Pure locationData
+      ld = obj
     else
-      "No location data"
+      return "No location data"
+
+    "#{ld.first_line + 1}:#{ld.first_column + 1}-#{ld.last_line + 1}:#{ld.last_column + 1}"
+
+# Strip '.coffee.md' if that's the extension
+# otherwise strip suffix starting at last '.'
+exports.stripExtension = (fn) ->
+  ext = ".coffee.md"
+  return fn.substr 0, fn.length - ext.length if ends fn, ext
+  return fn if '.' not in fn
+
+  butlast(fn.split '.').join '.'
 
 # A `.coffee.md` compatible version of `basename`, that returns the file sans-extension.
-exports.baseFileName = (file, stripExt = no) ->
-  parts = file.split('/')
-  file = parts[parts.length - 1]
-  return file unless stripExt
-  parts = file.split('.')
-  parts.pop()
-  parts.pop() if parts[parts.length - 1] is 'coffee' and parts.length > 1
-  parts.join('.')
 
 # Determine if a filename represents a CoffeeScript file.
 exports.isCoffee = (file) -> /\.((lit)?coffee|coffee\.md)$/.test file

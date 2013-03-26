@@ -2,7 +2,8 @@
 # -------
 
 # pull the helpers from `CoffeeScript.helpers` into local variables
-{starts, ends, repeat, compact, count, merge, extend, flatten, del, last, baseFileName} = CoffeeScript.helpers
+{starts, ends, repeat, compact, count, merge, butlast,
+ extend, flatten, del, last, stripExtension} = CoffeeScript.helpers
 
 
 # `starts`
@@ -104,32 +105,22 @@ test "the `last` helper allows one to specify an optional offset", ->
   ary = [0, 1, 2, 3, 4]
   eq 2, last(ary, 2)
 
-# `baseFileName`
+# `butlast`
 
-test "the `baseFileName` helper returns the file name to write to", ->
-  ext = '.js'
-  sourceToCompiled =
-    '.coffee': ext
-    'a.coffee': 'a' + ext
-    'b.coffee': 'b' + ext
-    'coffee.coffee': 'coffee' + ext
+test "the `butlast` helper returns the first items of an array-like object", ->
+  ary = [0, 1, 2, 3, 4]
+  arrayEq [0, 1, 2, 3], butlast ary
 
-    '.litcoffee': ext
-    'a.litcoffee': 'a' + ext
-    'b.litcoffee': 'b' + ext
-    'coffee.litcoffee': 'coffee' + ext
+test "the `butlast` helper allows one to specify an optional offset", ->
+  ary = [0, 1, 2, 3, 4]
+  arrayEq [0, 1], butlast ary, 2
 
-    '.lit': ext
-    'a.lit': 'a' + ext
-    'b.lit': 'b' + ext
-    'coffee.lit': 'coffee' + ext
-
-    '.coffee.md': ext
-    'a.coffee.md': 'a' + ext
-    'b.coffee.md': 'b' + ext
-    'coffee.coffee.md': 'coffee' + ext
-
-  for sourceFileName, expectedFileName of sourceToCompiled
-    name = baseFileName sourceFileName, yes
-    filename = name + ext
-    eq filename, expectedFileName
+# `stripExtension`
+test "stripExtension strips the right extensions", ->
+  eq "", stripExtension ""
+  eq "", stripExtension ".coffee"
+  eq "fn", stripExtension "fn"
+  eq "fn", stripExtension "fn.oogabooga"
+  eq "fn", stripExtension "fn.coffee.md"
+  eq "fn.oogabooga", stripExtension "fn.oogabooga.coffee"
+  eq "fn.oogabooga", stripExtension "fn.oogabooga.coffee.md"
